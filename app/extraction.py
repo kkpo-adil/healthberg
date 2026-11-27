@@ -7,6 +7,8 @@ from __future__ import annotations
 import hashlib
 import io
 import re
+import shutil
+import sys
 import unicodedata
 from datetime import datetime
 from dataclasses import dataclass
@@ -31,6 +33,14 @@ class ParsedDocument:
     warnings: list[str]
     text_previews: list[str] | None = None
     page_texts: list[str] | None = None
+    sample_date_evidence: SampleDateEvidence | None = None
+
+
+@dataclass(frozen=True)
+class SampleDateEvidence:
+    date: str
+    page: int
+    excerpt: str
 
 
 def clean(s: str) -> str:
@@ -181,8 +191,20 @@ def extract_medications(pages:list[str],document_date:str|None)->list[Medication
             out.append(MedicationCandidate(name=name,strength=m.group('strength').replace(' ',''),directions=(m.group('directions') or '').strip(),page=page,source_text=line[:180],document_date=document_date))
     return out
 
-def _ocr_image(image,warnings:list[str])->str:
+def _local_ocr():
     import pytesseract
+
+    # A Mac app launched from Finder may not inherit the Terminal's PATH.
+    if sys.platform == 'darwin' and not shutil.which(pytesseract.pytesseract.tesseract_cmd):
+        for path in ('/opt/homebrew/bin/tesseract', '/usr/local/bin/tesseract'):
+            if shutil.which(path):
+                pytesseract.pytesseract.tesseract_cmd = path
+                break
+    return pytesseract
+
+
+def _ocr_image(image,warnings:list[str])->str:
+    pytesseract = _local_ocr()
     from PIL import ImageEnhance, ImageOps
     try:
         languages=pytesseract.get_languages(config='')
@@ -284,21 +306,108 @@ def parse_file(data:bytes,content_type:str,filename:str) -> ParsedDocument:
     if medications:
         warnings=[w for w in warnings if 'Aucune valeur structurée reconnue' not in w]
         warnings.append('Prescription historique : ne jamais considérer ces médicaments comme actuellement pris sans vérification professionnelle.')
-    return ParsedDocument(sha256=hashlib.sha256(data).hexdigest(),page_count=len(pages),method=method,candidates=candidates,medications=medications,document_date=date,issuer=None,warnings=list(dict.fromkeys(warnings)),findings=findings,text_previews=transcripts,page_texts=transcripts)
+    alternatives = sample_date_options(transcripts) if is_pdf and not date else []
+    evidence = _resolve_visible_sample_date(data, alternatives) if len(alternatives) > 1 else None
+    return ParsedDocument(sha256=hashlib.sha256(data).hexdigest(),page_count=len(pages),method=method,candidates=candidates,medications=medications,document_date=date,issuer=None,warnings=list(dict.fromkeys(warnings)),findings=findings,text_previews=transcripts,page_texts=transcripts,sample_date_evidence=evidence)
+
+
+_SAMPLE_LABEL = re.compile(r'pr[eé]lev[eé](?:pr[eé]lev[eé])?|pr[eé]l[eè]vement', re.I)
+_SAMPLE_DATE = re.compile(r'(\d{2})[/.\-](\d{2})[/.\-](\d{4})')
+
+
+def _sample_dates(line):
+    label = _SAMPLE_LABEL.search(line)
+    if not label:
+        return set()
+    field = re.split(r'(?:[eé]dit[eé]|valid[eé]|prescrit)', line[label.end():], flags=re.I)[0]
+    dates = set()
+    for day, month, year in _SAMPLE_DATE.findall(field):
+        try:
+            dates.add(datetime(int(year), int(month), int(day)).date().isoformat())
+        except ValueError:
+            continue
+    return dates
 
 
 def sample_date_options(pages):
-    """Return literal sample-date alternatives, never choose between conflicting dates."""
-    options=set()
-    for page in pages:
-        for line in page.splitlines():
-            m=re.search(r'pr[eé]lev[eé](?:pr[eé]lev[eé])?|pr[eé]l[eè]vement',line,re.I)
-            if not m:continue
-            part=re.split(r'(?:[eé]dit[eé]|valid[eé]|prescrit)',line[m.end():],flags=re.I)[0]
-            for d in re.finditer(r'(\d{2})[/.\-](\d{2})[/.\-](\d{4})',part):
-                try:options.add(datetime(int(d[3]),int(d[2]),int(d[1])).date().isoformat())
-                except ValueError:pass
-    return sorted(options)
+    """List the sample dates present in the document text layer."""
+    return sorted({date for page in pages for line in page.splitlines() for date in _sample_dates(line)})
+
+
+def _read_sample_date_crop(page, rect, language):
+    import fitz
+    import pytesseract
+    from PIL import Image, ImageOps
+
+    clip = fitz.Rect(rect.x0 - 3, rect.y0 - 2, rect.x1 + 3, rect.y1 + 2) & page.rect
+    if clip.is_empty or clip.width * clip.height > 12_000:
+        return ''
+    pixmap = page.get_pixmap(matrix=fitz.Matrix(6, 6), clip=clip, alpha=False)
+    with Image.open(io.BytesIO(pixmap.tobytes('png'))) as image:
+        crop = ImageOps.expand(image, border=8, fill='white')
+        return pytesseract.image_to_string(crop, lang=language, config='--oem 1 --psm 7', timeout=3).strip()
+
+
+def _resolve_visible_sample_date(data, alternatives):
+    """Read overlapping date fields from rendered pixels, leaving separate dates unresolved."""
+    pytesseract = _local_ocr()
+
+    try:
+        languages = pytesseract.get_languages(config='')
+        language = next((lang for lang in ('fra', 'eng') if lang in languages), None)
+        if not language:
+            return None
+        return _compare_sample_date_regions(data, set(alternatives), language)
+    except (pytesseract.TesseractNotFoundError, pytesseract.TesseractError, RuntimeError, OSError):
+        return None
+
+
+def _compare_sample_date_regions(data, alternatives, language):
+    import fitz
+
+    evidence = []
+    unopposed_dates = set()
+    with fitz.open(stream=data, filetype='pdf') as pdf:
+        for page in pdf:
+            fields = []
+            flags = fitz.TEXTFLAGS_DICT & ~fitz.TEXT_PRESERVE_IMAGES
+            for block in page.get_text('dict', flags=flags)['blocks']:
+                for line in block.get('lines', []):
+                    dates = _sample_dates(''.join(span['text'] for span in line['spans']))
+                    if dates:
+                        fields.append((fitz.Rect(line['bbox']), dates))
+
+            used = set()
+            for index, (rect, dates) in enumerate(fields):
+                if index in used:
+                    continue
+                overlaps = [i for i, (other, _) in enumerate(fields) if i != index and rect.intersects(other)]
+                if not overlaps:
+                    if len(dates) > 1:
+                        return None
+                    unopposed_dates.update(dates)
+                    continue
+                crop_dates = dates.copy()
+                clip = fitz.Rect(rect)
+                for i in overlaps:
+                    other, other_dates = fields[i]
+                    crop_dates.update(other_dates)
+                    clip |= other
+                used.update(overlaps)
+                if len(crop_dates) == 1:
+                    unopposed_dates.update(crop_dates)
+                    continue
+                if len(evidence) >= 6:
+                    return None
+                excerpt = _read_sample_date_crop(page, clip, language)
+                visible = _sample_dates(excerpt)
+                if len(visible) != 1 or not visible <= crop_dates & alternatives:
+                    return None
+                evidence.append(SampleDateEvidence(visible.pop(), page.number + 1, excerpt[:120]))
+
+    if evidence and len({entry.date for entry in evidence} | unopposed_dates) == 1:
+        return evidence[0]
+    return None
 
 
 def report_conclusions(pages):

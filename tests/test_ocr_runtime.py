@@ -37,3 +37,39 @@ def test_two_page_scanned_pdf_is_not_treated_as_empty():
     assert len(result.findings)==11
     assert result.page_count==2 and all(result.page_texts)
     assert 'OCR' in result.method
+
+
+def report_with_two_dates(overlaid):
+    with fitz.open(stream=report_bytes(), filetype='pdf') as doc:
+        for page in doc:
+            # Cover the original fixture heading and add a date field distinct
+            # from the results. In the overlay case the first date stays in the
+            # PDF text layer, although its glyphs are covered on the page.
+            page.add_redact_annot(fitz.Rect(35, 30, 550, 60), fill=(1, 1, 1))
+            page.apply_redactions()
+            page.insert_text((40, 52), 'Prélevé le 08.04.2025', fontsize=11)
+            if overlaid:
+                page.draw_rect(fitz.Rect(37, 37, 165, 58), color=None, fill=(1, 1, 1))
+            page.insert_text((40, 52 if overlaid else 73), 'Prélevé le 08.11.2026', fontsize=11)
+        return doc.tobytes()
+
+
+@pytest.mark.parametrize('overlaid', [True, False])
+def test_pdf_rechecks_conflicting_dates_against_rendered_pixels(client, login_as, overlaid):
+    from tests.test_api import preview
+
+    require_ocr()
+    login_as('patient')
+    response = preview(client, data=report_with_two_dates(overlaid))
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload['findings']) == 11
+    assert payload['document_date'] is None
+    assert payload['sample_date_options'] == ['2025-04-08', '2026-11-08']
+    evidence = payload['sample_date_evidence']
+    if overlaid:
+        assert evidence['date'] == '2026-11-08'
+        assert evidence['page'] == 1
+        assert '08.11.2026' in evidence['excerpt']
+    else:
+        assert evidence is None

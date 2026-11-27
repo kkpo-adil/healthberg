@@ -70,3 +70,6 @@ body{background:var(--bg);color:var(--ink)}
 @media(max-width:780px){.aj-practice-feature{display:block}.aj-practice-feature button{margin-top:12px}.aj-clinical-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.aj-practice-quick{grid-template-columns:1fr}.aj-appointment-filters{grid-template-columns:1fr}}
 
 .aj-import-date-options{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+
+.aj-date-evidence,.aj-date-evidence summary{line-height:1.5;min-height:1.5em}
+.aj-date-evidence summary{cursor:pointer}

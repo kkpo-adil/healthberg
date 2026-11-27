@@ -319,7 +319,7 @@ async def preview(file:Annotated[UploadFile,File()],patient_id:Annotated[str,For
         'page_texts':parsed.page_texts,'findings':[f.model_dump() for f in parsed.findings],'candidates':[c.model_dump() for c in parsed.candidates],'medications':[m.model_dump() for m in parsed.medications]}
     return {'import_token':token,'patient_id':patient_id,'patient_name':db.patient_detail(patient_id)['name'],
         'candidates':parsed.candidates,'findings':parsed.findings,'medications':parsed.medications,'warnings':parsed.warnings,
-        'page_count':parsed.page_count,'sha256':parsed.sha256,'document_date':parsed.document_date,'extraction_method':parsed.method,'text_previews':parsed.text_previews,'sample_date_options':sample_date_options(parsed.page_texts or []),'conclusions':report_conclusions(parsed.page_texts or []),'expires_at':exp.isoformat()}
+        'page_count':parsed.page_count,'sha256':parsed.sha256,'document_date':parsed.document_date,'extraction_method':parsed.method,'text_previews':parsed.text_previews,'sample_date_options':sample_date_options(parsed.page_texts or []),'sample_date_evidence':parsed.sample_date_evidence,'conclusions':report_conclusions(parsed.page_texts or []),'expires_at':exp.isoformat()}
 
 @app.post('/api/documents/confirm')
 def confirm(body:ImportConfirm,user=Depends(current_user)):
