@@ -11,7 +11,7 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def browser_session(tmp_path_factory):
     folder=tmp_path_factory.mktemp('browser-import')
     with socket.socket() as sock:

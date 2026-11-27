@@ -5,11 +5,13 @@ from app import db
 from tests.test_api import preview
 
 
-def report_bytes():
+def report_bytes(ambiguous_date=False):
     doc=fitz.open()
+    header=('LABORATOIRE FICTIF - Prélevé le 08.04.202508.11.2026' if ambiguous_date
+            else 'LABORATOIRE FICTIF - Date du bilan : 08.11.2026')
     for n in range(4):
         p=doc.new_page()
-        p.insert_text((40,50),'LABORATOIRE FICTIF - Date du bilan : 08.11.2026',fontsize=11)
+        p.insert_text((40,50),header,fontsize=11)
         lines = [
             ['Antigène HBs    Négatif   Négatif Le 07.08.2023', 'ECLIA - DEMO', 'Index    0,25    0,40',
              'Anticorps anti-HBs    >1000 UI/L    Seuil : 10    >900',
