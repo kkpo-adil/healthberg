@@ -1,3 +1,15 @@
+# Ajour — maintenance à partir de la v0.9.7
+
+- Reprise du moteur, de l’interface et des parcours v0.9.7 dans le dépôt.
+- CI : contrôles statiques, API et OCR français sur Linux/macOS, parcours Chromium/WebKit.
+- Retrait de vues/modèles inutilisés, suppression des rechargements imbriqués et correction des catégories d’ordonnances.
+- Tensions dédupliquées, valeurs manuelles invalides refusées proprement, origine locale adaptée au port utilisé et nombre de pages d’ordonnance exact.
+- Tests synthétiques de l’import complet, de la sauvegarde et des droits ; aucune donnée personnelle ajoutée.
+
+---
+
+## Historique de la v0.2 (ne décrit pas le produit actuel)
+
 # Healthberg v0.2 — Livraison prototype
 
 ## Fonctionnalités opérationnelles

@@ -1,16 +1,80 @@
-name: Synthetic demo checks
+name: Ajour checks
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ajour-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  quality:
+    name: Code checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-fra
-      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pip install 'ruff>=0.12,<1' 'vulture>=2.14,<3'
+      - run: python -m ruff check app tests
+      - run: python -m vulture app --min-confidence 100
       - run: python -m compileall -q app
-      - run: pytest -q
+      - run: for file in static/*.js; do node --check "$file"; done
+
+  backend:
+    name: API and OCR (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-fra
+      - if: runner.os == 'macOS'
+        run: brew install tesseract tesseract-lang
+      - run: python -m pip install -r requirements-dev.txt
+      - name: Unit, access, import and actual OCR tests
+        env:
+          AJOUR_REQUIRE_FRENCH_OCR: '1'
+        run: python -m pytest -q --ignore=tests/e2e --junitxml=test-results/api.xml
+      - run: python verify_import.py
+
+  browser:
+    name: Import in ${{ matrix.browser }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            browser: chromium
+          - os: macos-latest
+            browser: webkit
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: Upload, common date, review, save and reload
+        env:
+          AJOUR_TEST_BROWSER: ${{ matrix.browser }}
+        run: python -m pytest -q tests/e2e --junitxml=test-results/browser.xml

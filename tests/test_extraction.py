@@ -1,5 +1,5 @@
 import pytest
-from app.extraction import extract_candidates, parse_date, parse_file
+from app.extraction import extract_candidates, parse_file
 from app.terminology import normalize
 
 TEST='''LABORATOIRE FICTIF\nDate du bilan : 14/09/2025\nGlycémie : 1,23 g/L\nHbA1c : 7,2 %\nCréatinine : 12,4 mg/L\nDFG : 67 mL/min/1,73m²\nCholestérol total : 1,89 g/L\nTension artérielle : 142/88 mmHg'''

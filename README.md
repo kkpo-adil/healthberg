@@ -1,92 +1,74 @@
-# Healthberg — Terminal médical longitudinal · Prototype 0.2
+# Ajour — base v0.9.7
 
-**Functional local demonstration, strictly with synthetic patient data. NOT a medical device, NOT an authenticated clinical product, NOT for actual patient records.**
+Application locale de démonstration pour importer et relire un historique médical fictif, avec un accès adapté au patient et aux professionnels. Ce dépôt reprend la **v0.9.7** et ajoute la maintenance ainsi que les tests automatisés de ses parcours. Il ne contient aucun document personnel.
 
-A visual, provenance-first longitudinal health terminal designed for clinician review and patient/caregiver coordination.
+## Démarrer le code
 
-## What works today
-
-- French-language responsive dark dashboard, five **fictional** patient profiles; patient switcher.
-- Historical charts for blood pressure, laboratory glucose, HbA1c, serum creatinine, weight and pulse.
-- Time range and metric selector; data point details and associated source receipt.
-- Last-visit changes, events, medications (clearly historical/declared), tabular analytics, CSV export and a self-contained consultation summary HTML (printable as PDF from the browser).
-- `Medical History Engine` upload of **fictional** PDF/JPEG/PNG. Native PDF text extraction or Tesseract OCR when needed. Basic prescription-line recognition, always historical and subject to manual review.
-- Strict regex extraction of selected measurements (never unsupervised diagnosis or medication dose inference). Requires explicit patient identity confirmation, review/correction and dated values.
-- No source PDF/image bytes, scanned pages or full OCR text stored in SQLite; only a SHA-256 fingerprint, minimal provenance, observations, normalization and review status. **SHA-256 is not evidence of source authenticity**. Human confirmation ≠ clinical verification.
-- Duplicate document detection scoped to a single patient.
-- Two-year **provisional technical retention of new extracted structured data**, configured with `HEALTHBERG_RETENTION_DAYS` (730 default); expiry cleanup at startup and through the local demo administrative endpoint. **Not a validated legal retention rule.**
-- Demo-only origin check and strict no-cache response headers; synthetic-only enforced mode.
-- Unit tests + API integration tests, source provenance and patient separation.
-
-## Requirements
-
-Python 3.11+, system `tesseract` with French and English trained data. On macOS, after extracting the archive you can use `LANCER_SUR_MAC.command` (right-click > Open if blocked by macOS), or run:
+Python 3.12 est la version vérifiée par la CI. Depuis la racine :
 
 ```bash
-brew install tesseract tesseract-lang
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 python -m app
 ```
 
-Then open **http://127.0.0.1:8765**.
+Ouvrir <http://127.0.0.1:8765>. Les comptes et le mot de passe affichés sont des identités fictives de démonstration. Sur Mac, `bash LANCER_SUR_MAC.command` prépare le moteur puis ouvre le navigateur. Ce dépôt lance l’application web locale ; il ne fabrique pas à lui seul une application macOS signée.
 
-To run tests:
+Les paramètres sont dans `.env.example` : les exporter dans le shell si nécessaire. Le programme ne charge pas automatiquement un fichier `.env`. `AJOUR_PORT` permet de choisir un autre port local.
 
-```bash
-pytest -q
-```
-
-Optional clean rebuild of fictional database:
+Pour les photos et PDF scannés, installer Tesseract et les langues française/anglaise :
 
 ```bash
-rm -f healthberg_demo.sqlite3 healthberg_demo.sqlite3-*
-python -m app
+# macOS avec Homebrew
+brew install tesseract tesseract-lang
+# Ubuntu
+sudo apt-get install tesseract-ocr tesseract-ocr-fra
 ```
 
-## File upload for fictional test reports
+Les PDF contenant du texte lisible ne nécessitent pas Tesseract.
 
-1. Produce or use **fictional** PDF/PNG/JPEG material only.
-2. Select a fictional patient, click *Importer un document*, tick the synthetic-only confirmation.
-3. Inspect extracted values, reject uncertain entries, enter real **document** sample date.
-4. Confirm the selected patient identity and the observations.
-5. Data points appear in charts; click a point to show the provenance receipt. No original page remains available.
+## Import d’historique
 
-Sample document generator: `python scripts/generate_demo_report.py` creates a fabricated PDF at `examples/fictional_report.pdf`; this file is excluded by `.gitignore` and should never be committed. A copy may be included in the deliverable ZIP.
+1. Lire le texte et les tableaux, ou utiliser l’OCR pour les scans.
+2. Présenter les résultats reconnus et les conclusions littérales, sans interprétation clinique.
+3. Confirmer une date commune si elle est absente ou ambiguë ; chaque date reste modifiable individuellement.
+4. Vérifier les transcriptions sélectionnées puis confirmer l’enregistrement.
+5. Retrouver les résultats et textes avec leur page, empreinte et source.
 
-## Safety and architecture notes
+Les résultats qualitatifs et bornés, par exemple « Négatif » et « >1000 UI/L », sont conservés comme tels. Ils ne deviennent pas des points numériques fictifs sur une courbe. Le texte non classé reste consultable dans les pages vérifiées. Les transcriptions complètes sont réservées au patient et au médecin ayant accès au dossier complet.
 
-This is a single-process **local** FastAPI service with HTML/CSS/vanilla JavaScript frontend and SQLite. Its purpose is to validate UX, data pipeline and provenance quickly without cloud dependencies.
+L’import d’historique ne conserve pas le PDF original, ses images ou sa mise en page. Le parcours distinct d’import d’ordonnance SPECIMEN conserve son PDF fictif pour la consultation par QR autorisé. Ces deux règles ne doivent pas être confondues. Conserver les originaux séparément. Un même document déjà confirmé est refusé pour éviter un doublon.
 
-**This demo has NO authentication, access grants, HDS-certified production hosting, encryption-at-rest guarantees, malware scanning, clinically validated OCR, regulatory qualification, background deletion scheduling, consent management or real device/DMP integration.** It deliberately binds to `127.0.0.1` and must not be internet-exposed. Do not upload real data, including family records. An upload enters the local Python process memory before extraction; preview candidate snippets exist in memory for up to 10 minutes. The source file bytes are not intentionally written to the database or a source file store. Logs never print OCR text. Operating system paging, temporary data from external dependencies, filesystem backups and telemetry require review for a production implementation.
+## Tests automatiques
 
-This is **not** end-to-end encryption or a commercial data protection claim. A conformant real-data pilot will require identity, access control, professional identity, threat modelling, authorization, a validated security and data retention design, and external clinical/legal review. That work can proceed after the prototype while retaining the hard NO-REAL-DATA release gate.
+[GitHub Actions](https://github.com/kkpo-adil/healthberg/actions) lance, à chaque push et pull request :
 
-The ingestion parser currently recognizes a **small set of explicit lab formats**, not arbitrary PDF layouts, handwritten orders, or complex lab tables. Unsupported units, censored values (`<`,`>`) and missing dates are never silently invented. Native PDF text is read with PyMuPDF; image-only documents use Tesseract OCR. The planned next phase should use a constrained document classifier, page-layout extraction and a strong human-review interface before any broader document support.
+- les contrôles de code Python et de syntaxe JavaScript ;
+- les tests API, droits d’accès, conservation, dates, import et OCR français sur Linux et macOS ;
+- les parcours dans Chromium sur Linux et WebKit sur macOS : connexion, dépôt d’un PDF fictif, date commune, contrôle des lignes, enregistrement, rechargement et agenda professionnel.
 
-## Data model
+En local :
 
-- `patients`: fiction-only records, no authentic identifiers.
-- `observations`: normalized and original values/units, clinical event date, source ID, review status, page, expiration.
-- `receipts`: document metadata, hash, import timestamp, source type, document date, expiration; never original bytes.
-- `meds`: fictional medication-history statements; no medication dose recommendations.
-- `events`: fictional visit events.
+```bash
+python -m ruff check app tests
+python -m pytest -q --ignore=tests/e2e
+python -m playwright install chromium
+python -m pytest -q tests/e2e
+```
 
-## Publication GitHub
+Pour utiliser WebKit : `python -m playwright install webkit`, puis `AJOUR_TEST_BROWSER=webkit python -m pytest -q tests/e2e`. Un binaire Chromium installé peut être indiqué par `AJOUR_TEST_CHROMIUM=/chemin/vers/chromium`.
 
-Le code est prévu pour le dépôt `kkpo-adil/healthberg`. Publier uniquement les fichiers sources de ce dossier : jamais la base SQLite locale, des documents médicaux ou des secrets. Le dépôt peut être public puisque cette version ne contient que des données synthétiques. Un dépôt public ne constitue **pas** une infrastructure utilisable pour des données de santé réelles.
+Les tests utilisent des bases temporaires et génèrent des documents synthétiques en mémoire. Ils ne modifient pas la base locale de l’utilisateur. La CI ne remplace pas une vérification de l’installation et de la fenêtre native macOS ; elle valide le moteur et l’interface web.
 
-## Publier dans GitHub depuis un Mac
+## Organisation
 
-Si l'intégration ChatGPT GitHub ne dispose pas de l'autorisation d'écriture Contents, le dossier peut être publié sans transfert par messagerie :
+- `app/` : API, permissions, stockage SQLite et parcours métiers.
+- `app/extraction.py`, `app/report_findings.py` : lecture documentaire et résultats littéraux.
+- `static/` : interface ; `practice.js`, `journeys.js` et `careflows.js` complètent les vues métier.
+- `tests/` : régressions du moteur et de l’API ; `tests/e2e/` : parcours réels de navigateur.
+- `verify_import.py` : contrôle rapide de l’import sur un PDF synthétique.
 
-1. Décompresser l'archive Healthberg et ouvrir le dossier.
-2. Double-cliquer `PUBLIER_SUR_GITHUB.command` (clic droit → Ouvrir si macOS le bloque).
-3. L'outil Git local envoie les sources sur `kkpo-adil/healthberg`. Une connexion GitHub peut être demandée, aucune clé n'est fournie dans ce dossier.
+## Limites
 
-**Important :** le script n'effectue jamais de `push --force`. Si le dépôt a déjà des commits distants, il s'arrête plutôt que d'écraser du travail.
-
-## Synthèse de consultation
-
-Le bouton **Synthèse consultation** exporte un fichier HTML lisible et imprimable localement (Imprimer → PDF depuis le navigateur). Il reprend les dernières mesures, dates, statuts et références des sources, sans diagnostic, sans interprétation, sans document original, et uniquement à partir de profils fictifs.
+Ce moteur reste un prototype avec base SQLite non chiffrée et comptes de démonstration. Il ne convient pas à des dossiers de santé réels. La reconnaissance reste limitée aux formats et termes programmés ; l’OCR peut se tromper et exige une vérification. Les interfaces officielles de santé, les dispositifs connectés et les annuaires externes ne sont pas connectés. Ajour n’établit ni diagnostic, ni posologie, ni triage.

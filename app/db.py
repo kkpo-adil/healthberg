@@ -1,6 +1,5 @@
 """Local SQLite demo store: structured fictional data only, no original documents."""
 from __future__ import annotations
-import json
 import os
 import sqlite3
 from pathlib import Path
@@ -22,13 +21,31 @@ PATIENTS=[
 ]
 
 
+class _ClosingConnection(sqlite3.Connection):
+    """Commit or roll back and *close* after each `with db.connect()` block.
+
+    sqlite3.Connection.__exit__ does not close files on its own. This demo
+    uses many short requests, so leaked handles can exhaust macOS file
+    descriptors and produce OperationalError: unable to open database file.
+    """
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 def connect():
-    DB_PATH.parent.mkdir(parents=True,exist_ok=True)
-    c=sqlite3.connect(DB_PATH)
-    c.row_factory=sqlite3.Row
-    c.execute('PRAGMA foreign_keys = ON')
-    c.execute('PRAGMA journal_mode = WAL')
-    return c
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    c=sqlite3.connect(DB_PATH, factory=_ClosingConnection)
+    try:
+        c.row_factory=sqlite3.Row
+        c.execute('PRAGMA foreign_keys = ON')
+        c.execute('PRAGMA journal_mode = WAL')
+        return c
+    except BaseException:
+        c.close()
+        raise
 
 
 def init_db():
@@ -39,6 +56,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS observations(id TEXT PRIMARY KEY,patient_id TEXT NOT NULL REFERENCES patients(id),code TEXT NOT NULL,label TEXT NOT NULL,value REAL NOT NULL,unit TEXT NOT NULL,measured_at TEXT NOT NULL,original_value TEXT NOT NULL,original_unit TEXT NOT NULL,source_id TEXT NOT NULL REFERENCES receipts(id),page INTEGER,context TEXT NOT NULL DEFAULT '',status TEXT NOT NULL,reference_range TEXT,retention_until TEXT NOT NULL, UNIQUE(patient_id,source_id,page,code,measured_at,original_value,original_unit));
         CREATE INDEX IF NOT EXISTS idx_obs_patient_date ON observations(patient_id, measured_at);
         CREATE INDEX IF NOT EXISTS idx_obs_patient_code ON observations(patient_id,code,measured_at);
+        CREATE TABLE IF NOT EXISTS document_pages(id TEXT PRIMARY KEY,patient_id TEXT NOT NULL REFERENCES patients(id),source_id TEXT NOT NULL REFERENCES receipts(id),page INTEGER NOT NULL,text TEXT NOT NULL,retention_until TEXT NOT NULL, UNIQUE(source_id,page));
+        CREATE TABLE IF NOT EXISTS report_findings(id TEXT PRIMARY KEY,patient_id TEXT NOT NULL REFERENCES patients(id),source_id TEXT NOT NULL REFERENCES receipts(id),code TEXT NOT NULL,label TEXT NOT NULL,value TEXT NOT NULL,unit TEXT NOT NULL,kind TEXT NOT NULL,page INTEGER NOT NULL,measured_at TEXT NOT NULL,status TEXT NOT NULL,retention_until TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS meds(id TEXT PRIMARY KEY,patient_id TEXT NOT NULL REFERENCES patients(id),name TEXT NOT NULL,schedule TEXT NOT NULL,state TEXT NOT NULL,since TEXT NOT NULL,note TEXT NOT NULL DEFAULT '',source_id TEXT REFERENCES receipts(id),page INTEGER,retention_until TEXT);
         CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY,patient_id TEXT NOT NULL REFERENCES patients(id),at TEXT NOT NULL,label TEXT NOT NULL,category TEXT NOT NULL,detail TEXT NOT NULL);
         ''')
@@ -126,7 +145,7 @@ def list_meds(pid):
     with connect() as c:return [dict(r) for r in c.execute('SELECT * FROM meds WHERE patient_id=? ORDER BY name',(pid,))]
 
 
-def save_confirmation(patient_id:str,meta:dict,candidates:list[dict],medications:list[dict]|None=None):
+def save_confirmation(patient_id:str,meta:dict,candidates:list[dict],medications:list[dict]|None=None,findings:list[dict]|None=None,page_texts:list[tuple[int,str]]|None=None):
     from .terminology import normalize
     now=datetime.now(timezone.utc)
     expires=(now+timedelta(days=RETENTION_DAYS)).isoformat()
@@ -152,7 +171,15 @@ def save_confirmation(patient_id:str,meta:dict,candidates:list[dict],medications
             name=(str(med['name'])+' '+str(med['strength'])).strip()
             c.execute('INSERT INTO meds VALUES(?,?,?,?,?,?,?,?,?,?)', (str(uuid4()),patient_id,name,str(med['directions']) or 'Non précisé','historical',str(med['since']), 'Extraction historique confirmée par utilisateur, non ordonnance active',rid,int(med['page']),expires))
             med_count+=1
-        return {'receipt_id':rid,'observations_created':count,'medications_created':med_count,'retention_until':expires}
+        for finding in findings or []:
+            c.execute('INSERT INTO report_findings VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', (
+                str(uuid4()),patient_id,rid,finding['code'],finding['label'],finding['value'],
+                finding['unit'],finding['kind'],finding['page'],finding['measured_at'],
+                'patient_confirmed',expires))
+        for page,text in page_texts or []:
+            c.execute('INSERT INTO document_pages VALUES(?,?,?,?,?,?)',
+                (str(uuid4()),patient_id,rid,page,text,expires))
+        return {'pages_retained':len(page_texts or []),'findings_created':len(findings or []),'receipt_id':rid,'observations_created':count,'medications_created':med_count,'retention_until':expires}
 
 
 def purge_expired(now:str|None=None):
@@ -160,5 +187,17 @@ def purge_expired(now:str|None=None):
     with connect() as c:
         obs=c.execute("DELETE FROM observations WHERE retention_until < ? AND id NOT LIKE 'syn_%'",(now,)).rowcount
         meds=c.execute("DELETE FROM meds WHERE retention_until IS NOT NULL AND retention_until < ?",(now,)).rowcount
+        c.execute("DELETE FROM document_pages WHERE retention_until < ?",(now,))
+        c.execute("DELETE FROM report_findings WHERE retention_until < ?",(now,))
         receipts=c.execute("DELETE FROM receipts WHERE retention_until < ? AND id NOT LIKE 'syn_source_%'",(now,)).rowcount
         return {'observations_removed':obs,'medications_removed':meds,'receipts_removed':receipts}
+
+
+def list_findings(pid):
+    with connect() as c:
+        return [dict(r) for r in c.execute('SELECT * FROM report_findings WHERE patient_id=? ORDER BY measured_at DESC,page,code',(pid,))]
+
+
+def list_document_pages(pid):
+    with connect() as c:
+        return [dict(row) for row in c.execute('SELECT * FROM document_pages WHERE patient_id=? ORDER BY source_id,page',(pid,))]

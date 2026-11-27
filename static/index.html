@@ -1,83 +1,17 @@
 <!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0a1020" />
-  <meta name="robots" content="noindex,nofollow" />
-  <title>HEALTHBERG — Health Intelligence</title>
-  <link rel="stylesheet" href="/static/styles.css" />
-  <script src="/static/app.js" defer></script>
-</head>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f8faf7"><meta name="color-scheme" content="light"><meta name="robots" content="noindex,nofollow"><title>Ajour · Votre santé, en clair</title><link rel="stylesheet" href="/static/styles.css"><link rel="stylesheet" href="/static/ajour.css"><script src="/static/app.js" defer></script><script src="/static/journeys.js" defer></script><script src="/static/careflows.js" defer></script></head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <div class="brandmark"><span></span><span></span><span></span><span></span></div>
-        <div><div class="brand-name">Health<span>berg</span></div><div class="brand-caption">HEALTH INTELLIGENCE</div></div>
-      </div>
-      <div class="env-chip"><span class="dot"></span> ENVIRONNEMENT DE DÉMO</div>
-      <div class="side-section-label">ESPACE CLINIQUE</div>
-      <nav class="menu" aria-label="Navigation">
-        <button class="nav active" data-tab="dashboard"><span class="nav-ico">▦</span> Vue d'ensemble <span class="nav-tail">↗</span></button>
-        <button class="nav" data-tab="analyses"><span class="nav-ico">⌁</span> Analyses & courbes</button>
-        <button class="nav" data-tab="documents"><span class="nav-ico">▤</span> Sources documentaires</button>
-        <button class="nav" data-tab="medications"><span class="nav-ico">◈</span> Médicaments</button>
-      </nav>
-      <div class="sidebar-separator"></div>
-      <div class="side-heading"><span>PATIENTS FICTIFS</span><span class="count">05</span></div>
-      <div class="patient-list" id="patientList" aria-label="Patients fictifs"></div>
-      <div class="sidebar-bottom">
-        <div class="sovereign-mark"><span class="fr-icon">FR</span><div><strong>Conçu pour la souveraineté</strong><small>Architecture indépendante · locale</small></div></div>
-        <div class="side-footer">Prototype fonctionnel · v0.2<br />Données intégralement synthétiques</div>
-      </div>
-    </aside>
-    <div class="workspace">
-      <header class="topbar">
-        <div class="crumbs"><span>HEALTHBERG</span> <span class="crumb-sep">/</span> <span id="breadcrumb">Vue d'ensemble</span></div>
-        <div class="top-actions">
-          <span class="live-indicator"><span></span> DÉMONSTRATION LOCALE</span>
-          <button class="icon-button mobile-menu" id="menuButton" aria-label="Ouvrir le menu">☰</button>
-          <div class="user-avatar" title="Mode démonstration">D</div>
-        </div>
-      </header>
-      <div class="demo-banner"><strong>Prototype avec patients fictifs.</strong> Ne pas importer de documents réels : ce démonstrateur local ne dispose pas d'authentification ni d'hébergement clinique certifié. <span>Durée technique provisoire : 730 jours, paramétrable.</span></div>
-      <main class="content">
-        <section class="patient-hero">
-          <div class="eyebrow">DOSSIER LONGITUDINAL <span class="eyebrow-sep">/</span> <span id="patientCode">HB-0001</span></div>
-          <div class="hero-main">
-            <div class="hero-identity"><div class="hero-avatar" id="heroInitials">MM</div><div><h1 id="patientName">Marie Martin <span class="hero-age" id="patientAge">78 ans</span></h1><p id="patientProfile">Diabète type 2 · hypertension · suivi cardiologique</p></div></div>
-            <div class="hero-actions"><button class="button secondary" id="summaryButton">Synthèse consultation</button><button class="button secondary" id="exportButton">Exporter CSV</button><button class="button primary" id="importButton"><span class="plus">＋</span> Importer un document</button></div>
-          </div>
-          <div class="hero-meta"><span><b class="meta-dot teal"></b> Patient fictif</span><span>Dernière consultation : <strong id="lastConsult">—</strong></span><span><strong id="receiptCount">—</strong> source(s) référencée(s)</span><span>Sources et corrections tracées</span></div>
-        </section>
-        <section id="dashboardTab">
-          <div class="section-heading"><div><div class="eyebrow">INDICATEURS CLÉS</div><h2>Constantes & biologie</h2></div><span class="section-note">Dernière valeur documentée, non interprétée</span></div>
-          <div class="metrics-grid" id="metricsGrid"></div>
-          <div class="main-grid">
-            <div class="left-stack">
-              <article class="panel chart-panel">
-                <div class="panel-top"><div><div class="eyebrow">HISTORIQUE DES MESURES</div><h3>Évolution clinique</h3></div><div class="panel-controls"><select class="select" id="metricSelect" aria-label="Mesure affichée"></select><select class="select" id="periodSelect" aria-label="Période"><option value="all">Tout</option><option value="12">12 mois</option><option value="6">6 mois</option><option value="3">3 mois</option></select></div></div>
-                <div class="chart-meta"><span class="small-dot"></span><span id="chartMetricLabel">Glycémie</span><span class="chart-unit" id="chartUnit">g/L</span><span class="chart-count" id="chartCount"></span></div>
-                <div id="lineChart" class="chart-frame" aria-label="Graphique de mesures"></div>
-                <div class="chart-footer"><span>Aucune interpolation, pas de seuil clinique calculé</span><span>Cliquer sur un point pour sa provenance</span></div>
-              </article>
-              <article class="panel observations-panel"><div class="panel-top"><div><div class="eyebrow">TRACÉE DES FAITS</div><h3>Dernières observations</h3></div><button class="text-button" id="seeAnalyses">Toutes les analyses ↗</button></div><div id="latestObservations"></div></article>
-            </div>
-            <div class="right-stack"><article class="panel last-panel"><div class="panel-top"><div><div class="eyebrow">CHANGEMENTS RÉCENTS</div><h3>Depuis la consultation</h3></div><span class="panel-pill" id="newFacts">—</span></div><div id="sinceConsultation"></div></article><article class="panel timeline-panel"><div class="panel-top"><div><div class="eyebrow">PARCOURS</div><h3>Événements médicaux</h3></div></div><div id="timeline"></div></article><div class="security-note"><div class="security-icon">◈</div><div><strong>Chaque donnée possède une origine</strong><p>Document référencé, horodatage, statut et empreinte SHA-256. Les originaux importés ne sont pas conservés.</p></div></div></div>
-          </div>
-        </section>
-        <section id="analysesTab" class="hidden"><div class="section-heading"><div><div class="eyebrow">EXPLORATION</div><h2>Analyses & séries temporelles</h2></div><span class="section-note">Source accessible pour chaque point</span></div><article class="panel analysis-panel"><div class="panel-top"><div><h3 id="analysisTitle">Glycémie</h3><p class="subtle">Historique sans interprétation médicale</p></div><div class="panel-controls"><select class="select" id="analysisMetricSelect"></select></div></div><div id="analysisChart" class="chart-frame large-chart"></div><div id="analysisRows"></div></article></section>
-        <section id="documentsTab" class="hidden"><div class="section-heading"><div><div class="eyebrow">TRACÉABILITÉ</div><h2>Registre de provenance</h2></div><button class="button primary" id="secondaryImportButton">＋ Importer un document</button></div><article class="panel registry"><div class="registry-head"><span>DOCUMENT RÉFÉRENCÉ</span><span>EMPREINTE / DATE</span><span>ÉTAT</span></div><div id="receiptRows"></div></article><p class="page-footnote">Une empreinte cryptographique ne prouve pas à elle seule l'authenticité. Après suppression du fichier, la lecture de la page source n'est plus possible sans réimportation.</p></section>
-        <section id="medicationsTab" class="hidden"><div class="section-heading"><div><div class="eyebrow">TRAITEMENTS</div><h2>Historique médicamenteux</h2></div><span class="section-note">Ne vaut pas ordonnance actuelle</span></div><article class="panel med-panel" id="medRows"></article><p class="page-footnote">Ce prototype ne propose ni rappel réel, ni recommandation posologique, ni vérification d'interaction.</p></section>
-        <footer class="app-footer">HEALTHBERG · Private health intelligence · Prototype synthétique non destiné au soin <span>FRANCE / 2026</span></footer>
-      </main>
-    </div>
+<div id="authScreen" class="auth-screen">
+  <div class="auth-left"><div class="logo auth-logo"><img class="brand-symbol" src="/static/ajour-mark.svg" alt=""><span>ajour</span></div><div class="auth-main"><div class="kicker inverse">VOTRE SANTÉ, EN CLAIR</div><h1>Votre dossier médical,<br><em>au bon endroit.</em></h1><p>Patients et professionnels, avec un accès adapté à chaque rôle.</p><div class="auth-orbit"><div class="orbit-center">✳</div><div class="orbit-circle a">PATIENT</div><div class="orbit-circle b">MÉDECIN</div><div class="orbit-circle c">PROCHE</div><div class="orbit-circle d">LABO</div></div></div><div class="auth-foot">AJOUR SUR MAC · DOSSIERS D’ESSAI</div></div>
+  <div class="auth-right"><div class="auth-pane"><div class="eyebrow">AJOUR · APPLICATION MAC</div><h2>Choisissez votre espace</h2><p>Sélectionnez un compte pour tester son parcours.</p><div class="account-list" id="accountList"><div class="loading">Chargement des comptes...</div></div><div class="login-password"><label for="password">Mot de passe de démo</label><input type="password" id="password" value="Demo-Healthberg-2026!" autocomplete="off"><span>Mode local de validation.</span></div><button id="loginBtn" class="btn primary wide" disabled>Entrer dans Ajour <span>→</span></button><div id="loginError" class="error" role="alert"></div><button class="register-link" id="registerBtn">＋ Créer un compte</button></div></div>
+</div>
+<div id="appShell" class="shell hidden">
+  <aside class="rail" id="sidebar"><button class="logo aj-logo-home" type="button" data-home aria-label="Revenir à l’accueil"><img class="brand-symbol" src="/static/ajour-mark.svg" alt=""><span>ajour</span></button><div class="rail-status"><span class="green-dot"></span> AJOUR LOCAL</div><div class="rail-label">MON ESPACE</div><nav id="nav" class="nav"></nav><div id="patientPickerWrap" class="patients-wrap"><div class="rail-label">MES DOSSIERS AUTORISÉS</div><div id="patientPicker"></div></div><div class="rail-bottom"><div class="rail-notice"><strong>Accès limités</strong><p>Dossiers et permissions de démonstration.</p></div><button id="logoutBtn" class="logout">↗ &nbsp; Changer de compte</button></div></aside>
+  <div class="main-area"><header class="topbar"><div><button id="menuBtn" class="mobile-menu" aria-label="Menu">☰</button><button class="aj-nav-back" type="button" data-nav-back aria-label="Revenir à l’étape précédente" title="Retour">←</button><button class="topbar-app-brand aj-logo-home" data-home type="button" aria-label="Revenir à l’accueil"><img src="/static/ajour-mark.svg" alt="">ajour</button><span id="breadcrumb">Ma santé</span><span class="top-sep">/</span><span class="top-env" id="navTrail">Votre espace</span></div><div class="top-profile"><button id="comfortBtn" title="Mode lecture confort" class="comfort-btn">A+</button><span class="status-dot"></span><span id="currentRole">Particulier</span><span id="currentInitials" class="circle-avatar">MM</span></div></header>
+    <div class="demo-strip">AJOUR LOCAL · VERSION DE VALIDATION (DONNÉES SENSIBLES NON AUTORISÉES)</div>
+    <nav id="mobileNav" class="mobile-bottom-nav" aria-label="Navigation principale"></nav>
+    <main class="page"><div id="hero" class="hero"></div><div id="flash" class="flash hidden"></div><div id="pageBody"></div><div class="page-bottom">AJOUR · Votre santé, en clair · Application Mac 0.9.7 <span>Conservation provisoire configurée : 730 jours</span></div></main>
   </div>
-  <div class="overlay hidden" id="importOverlay" role="dialog" aria-modal="true" aria-labelledby="importTitle"><div class="modal"><div class="modal-top"><div><div class="eyebrow">HISTORY ENGINE</div><h2 id="importTitle">Importer une source médicale fictive</h2></div><button class="close-button" id="closeImport" aria-label="Fermer">×</button></div>
-    <div id="uploadStep"><p class="modal-desc">Lecture éphémère de PDF, PNG ou JPEG. Le fichier n'est pas conservé ; après votre confirmation seules les valeurs structurées et la fiche de provenance restent.</p><div class="upload-area" id="uploadArea"><div class="upload-icon">▤</div><strong>Déposer un document ici</strong><span>ou cliquer pour sélectionner un fichier fictif</span><small>PDF / PNG / JPG · 12 Mo maximum · 30 pages</small><input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" hidden /></div><label class="check-row"><input type="checkbox" id="syntheticAck" /><span>Je confirme que ce document contient exclusivement des informations fictives, sans aucune donnée réelle de patient.</span></label><button class="button primary modal-submit" id="startExtraction" disabled>Analyser le document</button><div class="inline-status" id="uploadStatus" role="status"></div></div>
-    <div id="reviewStep" class="hidden"><div class="review-intro"><strong id="reviewPatient">—</strong><span id="reviewMeta">—</span></div><div id="reviewWarnings"></div><p class="modal-desc">Vérifie les valeurs et les dates. Toute information incertaine doit être corrigée ou décochée. Confirmation utilisateur ≠ validation médicale.</p><div class="review-table-wrapper"><table class="review-table"><thead><tr><th>Inclure</th><th>Mesure</th><th>Valeur normalisée</th><th>Unité</th><th>Date de mesure</th><th>Page</th></tr></thead><tbody id="reviewTable"></tbody></table></div><div id="medReviewGroup" class="hidden"><h3 style="font-size:14px;margin-top:25px">Lignes de prescription historiques</h3><p class="subtle">Les médicaments extraits seront archivés comme historiques, jamais présumés actifs.</p><div class="review-table-wrapper"><table class="review-table"><thead><tr><th>Inclure</th><th>Médicament</th><th>Dosage</th><th>Instructions figurant sur le document</th><th>Date</th></tr></thead><tbody id="reviewMeds"></tbody></table></div></div><label class="check-row"><input type="checkbox" id="patientAck" /><span>J'ai vérifié que ce document appartient bien au patient affiché et que les valeurs retenues sont correctes.</span></label><div class="modal-buttons"><button class="button secondary" id="resetImport">Retour</button><button class="button primary" id="confirmImport">Intégrer les valeurs sélectionnées</button></div><div class="inline-status" id="reviewStatus" role="status"></div></div>
-  </div></div>
-  <div class="overlay hidden" id="sourceOverlay" role="dialog" aria-modal="true" aria-labelledby="sourceTitle"><div class="source-modal"><div class="modal-top"><div><div class="eyebrow">PREUVE DE PROVENANCE</div><h2 id="sourceTitle">Source de la mesure</h2></div><button class="close-button" id="closeSource" aria-label="Fermer">×</button></div><div id="sourceContent"></div></div></div>
-</body>
-</html>
+</div>
+<div class="modal-backdrop hidden" id="modal" role="dialog" aria-modal="true"><div class="modal-card"><button id="closeModal" class="modal-close" aria-label="Fermer">×</button><div id="modalContent"></div></div></div>
+<script src="/static/practice.js" defer></script></body></html>

@@ -12,3 +12,5 @@ __pycache__/
 *.jpeg
 *.png
 !static/*.png
+test-results/
+playwright-report/
