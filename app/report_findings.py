@@ -68,3 +68,16 @@ def extract_findings(pages, document_date):
                 elif not re.match(r'^(?:ECLIA|CMIA|PCR)\b', line, re.I):
                     current = None
     return out
+
+
+def unparsed_result_labels(pages, findings):
+    """Flag known exam rows whose result was unreadable; do not guess a correction."""
+    recognized={(f.page,f.code) for f in findings}
+    missing=set()
+    for page,text in enumerate(pages,1):
+        for line in text.splitlines():
+            for code,label,pattern in ANALYTES:
+                if (page,code) in recognized:continue
+                if re.match(r'^\s*'+pattern+r'(?:\s*[:_\-]?\s+|\s*$)',line,re.I):
+                    missing.add((page,label))
+    return sorted(missing)

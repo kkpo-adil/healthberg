@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install 'ruff>=0.12,<1' 'vulture>=2.14,<3'
-      - run: python -m ruff check app tests
+      - run: python -m ruff check app scripts tests
       - run: python -m vulture app --min-confidence 100
       - run: python -m compileall -q app
       - run: for file in static/*.js; do node --check "$file"; done

@@ -73,7 +73,3 @@ class ImportConfirm(BaseModel):
     retained_pages: list[int] = Field(default_factory=list)
     transcription_verified: bool = False
     findings: list[ReportFinding] = Field(default_factory=list)
-
-
-
-

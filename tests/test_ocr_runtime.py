@@ -31,8 +31,8 @@ def test_two_page_scanned_pdf_is_not_treated_as_empty():
     with fitz.open(stream=report_bytes(),filetype='pdf') as source:
         for page in list(source)[:2]:
             out=scanned.new_page(width=page.rect.width,height=page.rect.height)
-            out.insert_image(out.rect,stream=page.get_pixmap(matrix=fitz.Matrix(2,2)).tobytes('png'))
-    raw=scanned.tobytes();scanned.close()
+            out.insert_image(out.rect,stream=page.get_pixmap(matrix=fitz.Matrix(3,3)).tobytes('png'))
+    raw=scanned.tobytes(deflate=True);scanned.close()
     result=parse_file(raw,'application/pdf','synthetic-scanned.pdf')
     assert len(result.findings)==11
     assert result.page_count==2 and all(result.page_texts)

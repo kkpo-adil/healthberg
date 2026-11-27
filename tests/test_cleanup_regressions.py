@@ -37,3 +37,11 @@ def test_prescription_pdf_page_count_is_real():
     raw=prescription_pdf()
     doc=fitz.open(stream=raw,filetype='pdf');doc.new_page();data=doc.tobytes();doc.close()
     assert prescription_import.extract_pdf(data,'Marie Martin')['pages']==2
+
+
+def test_unreadable_known_result_is_flagged_without_guessing():
+    from app.report_findings import extract_findings, unparsed_result_labels
+    pages=['Neisseria gonorrhoeae Neégatif']
+    findings=extract_findings(pages,None)
+    assert findings==[]
+    assert unparsed_result_labels(pages,findings)==[(1,'Neisseria gonorrhoeae')]

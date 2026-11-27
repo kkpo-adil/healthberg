@@ -12,7 +12,7 @@ from datetime import datetime
 from dataclasses import dataclass
 
 from .models import Candidate,MedicationCandidate,ReportFinding
-from .report_findings import extract_findings
+from .report_findings import extract_findings, unparsed_result_labels
 from .terminology import METRIC_BY_CODE, normalize
 
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
@@ -200,6 +200,15 @@ def _ocr_image(image,warnings:list[str])->str:
         warnings.append('OCR indisponible ou interrompu : '+str(exc)[:120])
         return ''
 
+def _render_ocr_page(page):
+    """Enough resolution for lab text, with a bounded pixel allocation."""
+    import fitz
+    from PIL import Image
+    scale=min(3.0,(12_000_000/max(1,page.rect.width*page.rect.height))**0.5)
+    pix=page.get_pixmap(matrix=fitz.Matrix(scale,scale),alpha=False)
+    return Image.open(io.BytesIO(pix.tobytes('png')))
+
+
 def parse_file(data:bytes,content_type:str,filename:str) -> ParsedDocument:
     if not data: raise ValueError('Fichier vide')
     if len(data)>MAX_UPLOAD_BYTES: raise ValueError('Fichier supérieur à 12 Mo')
@@ -220,8 +229,7 @@ def parse_file(data:bytes,content_type:str,filename:str) -> ParsedDocument:
                     table_text=_rebuild_table_lines(page)
                     has_native=len(page_text.strip())>=18
                     if len(page_text.strip())<18:
-                        pix=page.get_pixmap(matrix=fitz.Matrix(3,3),alpha=False)
-                        image=Image.open(io.BytesIO(pix.tobytes('png')))
+                        image=_render_ocr_page(page)
                         page_text=_ocr_image(image,warnings)
                         method='text-native+OCR'
                     transcripts.append(page_text)
@@ -253,8 +261,7 @@ def parse_file(data:bytes,content_type:str,filename:str) -> ParsedDocument:
             with fitz.open(stream=data,filetype='pdf') as retry_doc:
                 for page_index in range(min(len(retry_doc),4)):
                     page=retry_doc[page_index]
-                    pix=page.get_pixmap(matrix=fitz.Matrix(3,3),alpha=False)
-                    image=Image.open(io.BytesIO(pix.tobytes('png')))
+                    image=_render_ocr_page(page)
                     recognized=_ocr_image(image,warnings)
                     if recognized.strip():
                         pages[page_index]+='\n'+recognized
@@ -272,6 +279,8 @@ def parse_file(data:bytes,content_type:str,filename:str) -> ParsedDocument:
     medications=extract_medications(pages,date)
     if findings:
         warnings=[w for w in warnings if 'Aucune valeur structurée reconnue' not in w]
+    warnings.extend(f'Résultat non structuré page {page} : {label}. Vérifiez la transcription et le document.'
+                    for page,label in unparsed_result_labels(pages,findings))
     if medications:
         warnings=[w for w in warnings if 'Aucune valeur structurée reconnue' not in w]
         warnings.append('Prescription historique : ne jamais considérer ces médicaments comme actuellement pris sans vérification professionnelle.')

@@ -1,32 +1,17 @@
 #!/bin/bash
-set -euo pipefail
+# Publish a committed review branch. Never rename, force-push or write main.
+set -Eeuo pipefail
 cd "$(dirname "$0")"
-printf '\nHEALTHBERG — Publication du prototype sur GitHub\n'
-printf 'Dépôt cible : https://github.com/kkpo-adil/healthberg\n\n'
-printf 'AVERTISSEMENT : ne pas inclure de données médicales réelles.\n'
-if ! command -v git >/dev/null 2>&1; then
-  echo "Git est requis. Installer les outils Command Line Tools : xcode-select --install"
-  exit 1
-fi
-if ! git config user.name >/dev/null || ! git config user.email >/dev/null; then
-  echo "Git doit connaître votre nom et votre e-mail avant de faire un commit."
-  echo 'Exemple : git config --global user.name "Prénom Nom"'
-  echo '          git config --global user.email "vous@example.com"'
-  exit 1
-fi
-if [ ! -d .git ]; then git init; fi
-git branch -M main
-if git remote get-url origin >/dev/null 2>&1; then
-  current=$(git remote get-url origin)
-  if [ "$current" != "https://github.com/kkpo-adil/healthberg.git" ] && [ "$current" != "git@github.com:kkpo-adil/healthberg.git" ]; then
-    echo "Un autre dépôt distant est configuré : $current. Arrêt par sécurité."
-    exit 1
-  fi
+EXPECTED_REMOTE='https://github.com/kkpo-adil/healthberg.git'
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo 'Ce script doit être lancé depuis un clone Git du dépôt.'; exit 2; }
+BRANCH="$(git branch --show-current)"
+[[ -n "$BRANCH" && "$BRANCH" != main && "$BRANCH" != master ]] || { echo 'Publication réservée à une branche de travail, pas à main.'; exit 2; }
+[[ -z "$(git status --porcelain)" ]] || { echo 'Des modifications ne sont pas commitées. Vérifiez-les avant publication.'; exit 2; }
+REMOTE="$(git remote get-url origin)"
+[[ "$REMOTE" == "$EXPECTED_REMOTE" || "$REMOTE" == 'git@github.com:kkpo-adil/healthberg.git' ]] || { echo 'Dépôt distant différent de kkpo-adil/healthberg : arrêt.'; exit 2; }
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push -u origin "$BRANCH"
 else
-  git remote add origin https://github.com/kkpo-adil/healthberg.git
+  git push -u origin "$BRANCH"
 fi
-git add .
-if ! git diff --cached --quiet; then git commit -m "feat: Healthberg synthetic health intelligence prototype v0.2"; fi
-printf '\nEnvoi vers GitHub (GitHub peut demander une authentification) ...\n'
-git push -u origin main
-printf '\nPublication terminée : https://github.com/kkpo-adil/healthberg\n'
+printf '\nBranche publiée. Tests : https://github.com/kkpo-adil/healthberg/actions\n'

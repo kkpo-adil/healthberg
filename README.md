@@ -51,13 +51,15 @@ L’import d’historique ne conserve pas le PDF original, ses images ou sa mise
 En local :
 
 ```bash
-python -m ruff check app tests
+python -m ruff check app scripts tests
 python -m pytest -q --ignore=tests/e2e
 python -m playwright install chromium
 python -m pytest -q tests/e2e
 ```
 
 Pour utiliser WebKit : `python -m playwright install webkit`, puis `AJOUR_TEST_BROWSER=webkit python -m pytest -q tests/e2e`. Un binaire Chromium installé peut être indiqué par `AJOUR_TEST_CHROMIUM=/chemin/vers/chromium`.
+
+Le contrôle `python scripts/check_ci.py <SHA>` autorise l’installation uniquement si le workflow complet du même commit a réussi ; une exécution plus récente en échec bloque l’installation.
 
 Les tests utilisent des bases temporaires et génèrent des documents synthétiques en mémoire. Ils ne modifient pas la base locale de l’utilisateur. La CI ne remplace pas une vérification de l’installation et de la fenêtre native macOS ; elle valide le moteur et l’interface web.
 

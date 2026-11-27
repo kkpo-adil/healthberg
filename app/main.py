@@ -12,6 +12,7 @@ from math import isfinite
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile, File, Form
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -307,7 +308,7 @@ async def preview(file:Annotated[UploadFile,File()],patient_id:Annotated[str,For
     if not synthetic_ack:raise HTTPException(400,'Mode local de validation requis')
     raw=await file.read(MAX_UPLOAD_BYTES+1)
     await file.close()
-    try:parsed=parse_file(raw,file.content_type or '',file.filename or '')
+    try:parsed=await run_in_threadpool(parse_file,raw,file.content_type or '',file.filename or '')
     except ValueError as exc:raise HTTPException(400,str(exc)) from exc
     finally:del raw
     now=datetime.now(timezone.utc)
@@ -366,9 +367,12 @@ def confirm(body:ImportConfirm,user=Depends(current_user)):
         item_data=item.model_dump();item_data['measured_at']=dt.isoformat();items.append(item_data)
     consumed_med=set();meds=[]
     for med in body.medications:
-        match=next((i for i,c in enumerate(s['medications']) if i not in consumed_med and c['name']==med.name and c['strength']==med.strength and c['page']==med.page),None)
+        match=next((i for i,c in enumerate(s['medications']) if i not in consumed_med and c['name']==med.name and c['strength']==med.strength and c['page']==med.page and c['directions']==med.directions),None)
         if match is None:raise HTTPException(400,'Médicament non issu du document')
-        consumed_med.add(match);meds.append(med.model_dump())
+        since=med.since or common_date
+        try: since=datetime.strptime(since or '', '%Y-%m-%d').date().isoformat()
+        except ValueError:raise HTTPException(400,'Date de prescription manquante ou invalide')
+        consumed_med.add(match);med_data=med.model_dump();med_data['since']=since;meds.append(med_data)
     findings=[];used_findings=set()
     for finding in body.findings:
         match=next((i for i,f in enumerate(s.get('findings',[])) if i not in used_findings and
